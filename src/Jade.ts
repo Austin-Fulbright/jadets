@@ -70,6 +70,22 @@ export class Jade implements IJade {
 		return this._jadeRpc('debug_set_mnemonic', params);
 	}
 
+	async authUser(
+		network: string,
+		http_request_fn?: (params: any) => Promise<{ body: any }>,
+			epoch?: number
+	): Promise<boolean> {
+		if (typeof network !== 'string' || network.length === 0) {
+			throw new Error('authUser: "network" must be a non-empty string');
+		}
+		const computedEpoch = epoch !== undefined ? epoch : Math.floor(Date.now() / 1000);
+		const params = {
+			network,
+			epoch: computedEpoch
+		};
+		return this._jadeRpc('auth_user', params, undefined, true, http_request_fn);
+	}
+
 	async addEntropy(entropy: Uint8Array): Promise<boolean> {
 		const params = {entropy}
 		return this._jadeRpc('add_entropy', params);

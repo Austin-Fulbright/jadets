@@ -40,10 +40,15 @@ export interface IJadeInterface {
 export interface IJade {
 	connect(): Promise<void>;
 	disconnect(): Promise<void>;
-	cleanReset(): Promise<boolean>
+	cleanReset(): Promise<boolean>;
 	ping(): Promise<0|1|2>;
 	getVersionInfo(nonblocking?: boolean): Promise<any>;
 	setMnemonic(mnemonic: string, passphrase?: string, temporaryWallet?: boolean): Promise<boolean>; 
+	authUser(
+		network: string,
+		http_request_fn?: (params: any) => Promise<{ body: any }>,
+		epoch?: number
+	): Promise<boolean>; 
 	addEntropy(entropy: Uint8Array): Promise<boolean>;
 	setEpoch(epoch?: number): Promise<boolean>;
 	logout(): Promise<boolean>;
