@@ -9,7 +9,6 @@ export class Jade implements IJade {
 	async connect() { return this.iface.connect(); }
 	async disconnect() { return this.iface.disconnect(); }
 
-
 	private async _jadeRpc(
 		method: string,
 		params?: any,
@@ -20,7 +19,6 @@ export class Jade implements IJade {
 		const requestId = id || Math.floor(Math.random() * 1000000).toString();
 		const request = this.iface.buildRequest(requestId, method, params);
 		const reply = await this.iface.makeRPCCall(request, long_timeout);
-
 		if (reply.error) {
 			throw new Error(`RPC Error ${reply.error.code}: ${reply.error.message}`);
 		}
@@ -154,8 +152,7 @@ export class Jade implements IJade {
 	}
 
 	async signPSBT(network: string, psbt: Uint8Array): Promise<Uint8Array> {
-		const params = {'network': network, 'psbt': psbt}
-		return this._jadeRpc('sign_psbt', params, undefined, true);
+		return this.iface._signPSBT(network, psbt);
 	}
 
 	async getMasterFingerPrint(network: string): Promise<null | string>{

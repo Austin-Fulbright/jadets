@@ -46,6 +46,15 @@ export class TCPTransport extends EventEmitter implements JadeTransport {
     this.on('message', callback);
   }
 
+  async write(bytes: Uint8Array): Promise<void> {
+	  throw new Error("not yet implemented");
+  }
+
+  async read(): Promise<Uint8Array> {
+	  throw new Error("not yet implemented");
+  }
+
+
   private onData(data: Buffer) {
     // 1) Accumulate incoming bytes
     this.recvBuffer = Buffer.concat([this.recvBuffer, data]);

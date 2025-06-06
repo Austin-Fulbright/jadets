@@ -29,12 +29,15 @@ export interface JadeTransport extends EventEmitter {
 	disconnect(): Promise<void>;
 	sendMessage(msg: any): Promise<void>;
 	onMessage(callback: (msg: any) => void): void;
+	write(bytes: Uint8Array): Promise<void>; 
+    read(): Promise<Uint8Array>; 
 }
 export interface IJadeInterface {
 	connect(): Promise<void>;
 	disconnect(): Promise<void>;
 	buildRequest(id: string, method: string, params?: any): RPCRequest;
 	makeRPCCall(request: RPCRequest, long_timeout: boolean): Promise<RPCResponse>;
+	_signPSBT(network: string, psbt: Uint8Array): Promise<Uint8Array>;
 };
 
 export interface IJade {
