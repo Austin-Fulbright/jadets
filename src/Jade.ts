@@ -155,7 +155,7 @@ export class Jade implements IJade {
 
 	async signPSBT(network: string, psbt: Uint8Array): Promise<Uint8Array> {
 		const params = {'network': network, 'psbt': psbt}
-		return this._jadeRpc('sign_psbt', params);
+		return this._jadeRpc('sign_psbt', params, undefined, true);
 	}
 
 	async getMasterFingerPrint(network: string): Promise<null | string>{
