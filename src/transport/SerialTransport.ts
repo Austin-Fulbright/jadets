@@ -74,7 +74,8 @@ export class SerialTransport extends EventEmitter implements JadeTransport {
       while (true) {
         const { value, done } = await this.reader.read();
         if (done) {
-          console.log("[SerialTransport] readLoop: reader signaled done");
+          console.log("[SerialTransport] readLoop: reader signaled done; attempting final decode");
+          this.attemptFinalDecode();
           break;
         }
         if (value) {
@@ -89,7 +90,9 @@ export class SerialTransport extends EventEmitter implements JadeTransport {
         }
       }
     } catch (error) {
-      console.error("[SerialTransport] Read error:", error);
+      console.error("[SerialTransport] Read error (treating as done):", error);
+      console.log("[SerialTransport] readLoop: attempting final decode after error");
+      this.attemptFinalDecode();
     } finally {
       if (this.reader) {
         console.log("[SerialTransport] readLoop: releasing reader lock");
@@ -158,6 +161,72 @@ export class SerialTransport extends EventEmitter implements JadeTransport {
       }
     }
     console.log("[SerialTransport] ← processReceivedData() finished");
+  }
+
+  /**
+   * Try to decode any complete CBOR frames left in receivedBuffer,
+   * even if Jade closed mid-stream. Continues until no full frame remains.
+   */
+  private attemptFinalDecode(): void {
+    console.log(
+      `[SerialTransport] → attemptFinalDecode(): buffer length = ${this.receivedBuffer.length}`
+    );
+    let index = 1;
+    const totalLen = this.receivedBuffer.length;
+    while (index <= totalLen) {
+      try {
+        const sliceToTry = this.receivedBuffer.slice(0, index);
+        const decoded = decode(sliceToTry);
+        if (
+          decoded &&
+          typeof decoded === "object" &&
+          (("error" in decoded) ||
+            ("result" in decoded) ||
+            ("log" in decoded) ||
+            ("method" in decoded))
+        ) {
+          console.log(
+            "[SerialTransport] attemptFinalDecode: decoded full CBOR message:",
+            decoded
+          );
+          this.emit("message", decoded);
+          this.receivedBuffer = this.receivedBuffer.slice(index);
+          console.log(
+            `[SerialTransport] attemptFinalDecode: buffer sliced, new length = ${this.receivedBuffer.length}`
+          );
+          // Reset index and totalLen for next pass
+          index = 1;
+        } else {
+          console.warn(
+            "[SerialTransport] attemptFinalDecode: decoded object missing expected keys:",
+            decoded
+          );
+          // Remove bytes to avoid infinite loop, then continue
+          this.receivedBuffer = this.receivedBuffer.slice(index);
+          index = 1;
+        }
+      } catch (error: any) {
+        if (
+          error.message &&
+          (error.message.includes("Offset is outside") ||
+            error.message.includes("Insufficient data") ||
+            error.message.includes("Unexpected end of stream"))
+        ) {
+          index++;
+          if (index > this.receivedBuffer.length) {
+            console.log(
+              "[SerialTransport] attemptFinalDecode: still need more data, giving up"
+            );
+            break;
+          }
+        } else {
+          console.error("[SerialTransport] attemptFinalDecode CBOR error:", error);
+          this.receivedBuffer = new Uint8Array(0);
+          break;
+        }
+      }
+    }
+    console.log("[SerialTransport] ← attemptFinalDecode() finished");
   }
 
   private concatBuffers(a: Uint8Array, b: Uint8Array): Uint8Array {
