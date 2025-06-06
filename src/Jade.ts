@@ -154,8 +154,48 @@ export class Jade implements IJade {
 	}
 
 	async signPSBT(network: string, psbt: Uint8Array): Promise<Uint8Array> {
-		const params = {'network': network, 'psbt': psbt}
-		return this._jadeRpc('sign_psbt', params);
+
+		const initialId = Math.floor(Math.random() * 900_000 + 100_000).toString();
+		const params = { network, psbt };
+		const firstReply: {
+			seqnum: number;
+			seqlen: number;
+			result: Uint8Array;
+		} = await this._jadeRpc("sign_psbt", params, initialId, true);
+
+		let combined = new Uint8Array(0);
+
+		combined = Uint8Array.of(...combined, ...firstReply.result);
+
+		if (firstReply.seqnum === firstReply.seqlen) {
+			return combined;
+		}
+
+		let nextSeq = firstReply.seqnum + 1;
+		const finalSeq = firstReply.seqlen;
+
+		while (nextSeq <= finalSeq) {
+			const extId = Math.floor(Math.random() * 900_000 + 100_000).toString();
+
+			const extParams = {
+				origid: initialId,          
+				orig: "sign_psbt",         
+				seqnum: nextSeq,           
+				seqlen: finalSeq,          
+			};
+
+			const fragmentReply: {
+				seqnum: number;
+				seqlen: number;
+				result: Uint8Array;
+			} = await this._jadeRpc("get_extended_data", extParams, extId, true);
+
+			combined = Uint8Array.of(...combined, ...fragmentReply.result);
+
+			nextSeq = fragmentReply.seqnum + 1;
+		}
+
+		return combined;
 	}
 
 	async getMasterFingerPrint(network: string): Promise<null | string>{
