@@ -56,34 +56,28 @@ export class SerialTransport extends EventEmitter implements JadeTransport {
   }
 
   private tryEmitRPC() {
-    // keep pulling full CBOR objects off rpcBuffer
     while (this.rpcBuffer.length) {
       try {
         const msg = decode(this.rpcBuffer)
         this.emit('message', msg)
-        // drop the bytes that decode() consumed:
         const consumed = encode(msg).length
         this.rpcBuffer = this.rpcBuffer.slice(consumed)
       } catch (err: any) {
         const m = err.message || ''
         if (m.includes('Insufficient data') || m.includes('Unexpected end')) {
-          // wait for more bytes
           return
         }
-        // some other decode error → drop buffer
         this.rpcBuffer = new Uint8Array(0)
         return
       }
     }
   }
 
-  /** high‐level RPC send */
   async sendMessage(obj: any): Promise<void> {
     const cborReq = encode(obj)
     await this.write(cborReq)
   }
 
-  /** low‐level raw write */
   async write(bytes: Uint8Array): Promise<void> {
     if (!this.port?.writable) throw new Error('Port not available')
     const w = this.port.writable.getWriter()
@@ -91,7 +85,6 @@ export class SerialTransport extends EventEmitter implements JadeTransport {
     w.releaseLock()
   }
 
-  /** low‐level raw read */
   async read(): Promise<Uint8Array> {
     if (this.rawQueue.length) {
       return this.rawQueue.shift()!
@@ -101,7 +94,6 @@ export class SerialTransport extends EventEmitter implements JadeTransport {
     })
   }
 
-  /** RPC subscribe */
   onMessage(cb: (msg: any) => void): void {
     this.on('message', cb)
   }
