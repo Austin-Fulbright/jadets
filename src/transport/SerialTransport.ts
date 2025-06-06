@@ -1,7 +1,7 @@
 // transport/SerialTransport.ts
 import { EventEmitter } from 'events';
 import { SerialPortOptions, JadeTransport } from "../types";
-import { encode, decode } from 'cbor2';
+import { encode, decodeSequence } from 'cbor2'; // (Assumes decodeSequence is exported by your CBOR library)
 
 export class SerialTransport extends EventEmitter implements JadeTransport {
   private options: SerialPortOptions;
@@ -15,6 +15,7 @@ export class SerialTransport extends EventEmitter implements JadeTransport {
   }
 
   drain(): void {
+    // Clear out any queued bytes
     this.receivedBuffer = new Uint8Array(0);
   }
 
@@ -25,13 +26,13 @@ export class SerialTransport extends EventEmitter implements JadeTransport {
         throw new Error('Web Serial API is not supported in this browser.');
       }
 
+      // Either grab an existing port or ask the user to pick one
       const ports: any[] = await serial.getPorts();
       if (ports.length === 0) {
         this.port = await serial.requestPort();
       } else {
         this.port = ports[0];
       }
-
       if (!this.port) {
         throw new Error('No serial port selected.');
       }
@@ -49,11 +50,12 @@ export class SerialTransport extends EventEmitter implements JadeTransport {
 
   private async readLoop(): Promise<void> {
     if (!this.reader) return;
-
     try {
       while (true) {
         const { value, done } = await this.reader.read();
         if (done) {
+          // Stream closed; attempt one final decode of whatever’s left
+          this.attemptFinalDecode();
           break;
         }
         if (value) {
@@ -62,7 +64,8 @@ export class SerialTransport extends EventEmitter implements JadeTransport {
         }
       }
     } catch (error) {
-      console.error('[WebSerialPort] Read error:', error);
+      console.error('[WebSerialPort] Read error (treating as done):', error);
+      this.attemptFinalDecode();
     } finally {
       if (this.reader) {
         this.reader.releaseLock();
@@ -72,39 +75,82 @@ export class SerialTransport extends EventEmitter implements JadeTransport {
   }
 
   private processReceivedData(): void {
-    let index = 1;
-    while (index <= this.receivedBuffer.length) {
+    // Try decoding as many full CBOR items from receivedBuffer as possible
+    let bufferChanged = true;
+    while (bufferChanged && this.receivedBuffer.length > 0) {
+      bufferChanged = false;
       try {
-        const sliceToTry = this.receivedBuffer.slice(0, index);
-        const decoded = decode(sliceToTry);
-        if (
-          decoded &&
-          typeof decoded === 'object' &&
-          (('error' in decoded) ||
-            ('result' in decoded) ||
-            ('log' in decoded) ||
-            ('method' in decoded))
-        ) {
-          this.emit('message', decoded);
-        }
-        this.receivedBuffer = this.receivedBuffer.slice(index);
-        index = 1;
-      } catch (error: any) {
-        if (
-          error.message &&
-          (error.message.includes('Offset is outside') ||
-            error.message.includes('Insufficient data') ||
-            error.message.includes('Unexpected end of stream'))
-        ) {
-          index++;
-          if (index > this.receivedBuffer.length) {
-            break;
-          }
-        } else {
-          console.error('[WebSerialPort] CBOR decode error:', error);
-          this.receivedBuffer = new Uint8Array(0);
+        // decodeSequence yields each complete CBOR value at a time
+        const items = Array.from(decodeSequence(this.receivedBuffer));
+        if (items.length === 0) {
+          // No complete items yet; wait for more bytes
           break;
         }
+
+        // For each decoded item, emit it
+        for (const obj of items) {
+          this.emit('message', obj);
+        }
+
+        // Now remove exactly the bytes that correspond to all items we just emitted.
+        // decodeSequence consumed each complete item in order, so the last cursor position
+        // equals the sum of encoded lengths of those items. We can find that by re-encoding
+        // each object back to CBOR, but a faster (and safer) way is to use the
+        // internal length information from decodeSequence. Unfortunately cbor2’s decodeSequence
+        // does not give us “consumed-byte count” directly. Instead, we’ll slice off exactly the
+        // total length of every encoded item in sequence, by incrementally re-encoding each
+        // decoded object and reducing the buffer length.
+
+        let bytesConsumed = 0;
+        for (const obj of items) {
+          const reencoded = encode(obj);
+          bytesConsumed += reencoded.length;
+        }
+        this.receivedBuffer = this.receivedBuffer.slice(bytesConsumed);
+        bufferChanged = true;
+      } catch (err: any) {
+        // If decodeSequence threw “insufficient data” or “unexpected end”, break and wait for more
+        if (
+          err.message.includes('Insufficient data') ||
+          err.message.includes('Unexpected end') ||
+          err.message.includes('premature end')
+        ) {
+          break;
+        }
+        // Any other error means invalid CBOR; throw it away entirely
+        console.error('[WebSerialPort] CBOR decodeSequence error:', err);
+        this.receivedBuffer = new Uint8Array(0);
+        break;
+      }
+    }
+  }
+
+  /**
+   * When the stream closes (done) or errors, attempt one final pass over
+   * whatever leftover bytes remain. If they form one or more full CBOR items,
+   * decode & emit them; otherwise drop them.
+   */
+  private attemptFinalDecode(): void {
+    try {
+      const items = Array.from(decodeSequence(this.receivedBuffer));
+      let bytesConsumed = 0;
+      for (const obj of items) {
+        this.emit('message', obj);
+        const reencoded = encode(obj);
+        bytesConsumed += reencoded.length;
+      }
+      this.receivedBuffer = this.receivedBuffer.slice(bytesConsumed);
+    } catch (err: any) {
+      // If there isn’t a full item left, ignore
+      if (
+        err.message.includes('Insufficient data') ||
+        err.message.includes('Unexpected end')
+      ) {
+        // simply drop whatever cannot decode
+        this.receivedBuffer = new Uint8Array(0);
+      } else {
+        console.error('[WebSerialPort] attemptFinalDecode CBOR error:', err);
+        this.receivedBuffer = new Uint8Array(0);
       }
     }
   }
@@ -126,7 +172,6 @@ export class SerialTransport extends EventEmitter implements JadeTransport {
       }
       this.port = null;
       this.reader = null;
-      console.log('[WebSerialPort] Disconnected successfully.');
     } catch (error) {
       console.error('[WebSerialPort] Error during disconnect:', error);
     }
