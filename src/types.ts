@@ -63,7 +63,6 @@ export interface IJade {
 	getRegisteredMultisig(name: string, asFile?: boolean): Promise<RegisteredMultisig>;
 	getReceiveAddress(
 		network: string,
-		path: number[],
 		options?: ReceiveOptions
 	): Promise<string>;
 	signMessage(
@@ -123,12 +122,21 @@ export interface RegisteredMultisig {
 }
 
 export interface ReceiveOptions {
-  variant?: string;
-  confidential?: boolean;
-  multisigName?: string;
-  descriptorName?: string;
-  recoveryXpub?: string;
-  csvBlocks?: number;
+
+  path?: number[]  
+
+  paths?: number[][]
+
+  multisigName?: string  
+
+  descriptorName?: string  
+
+  variant?: string  
+
+  recoveryXpub?: Uint8Array  
+  csvBlocks?: number  
+  confidential?: boolean  
+
 }
 
 export interface TestXpub {

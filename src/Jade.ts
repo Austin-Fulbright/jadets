@@ -130,12 +130,23 @@ export class Jade implements IJade {
 		return this._jadeRpc('get_registered_multisig', params);
 	}
 
+
 	async getReceiveAddress(
 		network: string,
-		path: number[],
-		options?: ReceiveOptions
+		opts: ReceiveOptions
 	): Promise<string> {
-		throw new Error('Method not implemented: getReceiveAddress');
+		const params: any = { network };
+
+		if (opts.path)           params.path = opts.path;
+		if (opts.paths)          params.paths = opts.paths;
+		if (opts.multisigName)   params.multisig_name = opts.multisigName;
+		if (opts.descriptorName) params.descriptor_name = opts.descriptorName;
+		if (opts.variant)        params.variant = opts.variant;
+		if (opts.recoveryXpub)   params.recovery_xpub = opts.recoveryXpub;
+		if (opts.csvBlocks)      params.csv_blocks = opts.csvBlocks;
+		if (opts.confidential)   params.confidential = opts.confidential;
+
+		return this._jadeRpc("get_receive_address", params);
 	}
 
 	async signMessage(
