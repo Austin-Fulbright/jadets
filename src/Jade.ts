@@ -1,6 +1,11 @@
 //Jade.ts
 import { IJadeInterface, IJade, SignerDescriptor, MultisigSummary, RegisteredMultisig, ReceiveOptions, MultisigDescriptor, RegisterMultisigParams } from './types';
+
 import { getFingerprintFromXpub } from './utils' 
+
+import { v4 as uuidv4 } from 'uuid';
+
+import { randomBytes } from 'crypto';
 
 export class Jade implements IJade {
 
@@ -112,17 +117,71 @@ export class Jade implements IJade {
 		multisigName: string,
 		descriptor: MultisigDescriptor
 	): Promise<boolean> {
+		let mname = multisigName;
+
+		if (mname === undefined) {
+			mname = "jade" + randomBytes(4).toString("hex");
+		}
+
 		const params: RegisterMultisigParams = {
 			network,
-			multisig_name: multisigName,
+			multisig_name: mname,
 			descriptor,
 		};
 		return this._jadeRpc('register_multisig', params);
 	}
 
 	async getRegisteredMultisigs(): Promise<Record<string, MultisigSummary>> {
-		throw new Error('Method not implemented: getRegisteredMultisigs');
+		return this._jadeRpc("get_registered_multisigs");
 	}
+
+	async getMultiSigName(
+		network: string,
+		target: MultisigDescriptor
+	): Promise<string | undefined> {
+		const summaries = await this.getRegisteredMultisigs();
+		const candidateNames = Object.entries(summaries)
+		.filter(
+			([name, sum]) =>
+			sum.variant === target.variant &&
+				sum.sorted === target.sorted &&
+				sum.threshold === target.threshold &&
+				sum.numSigners === target.signers.length
+		)
+		.map(([name]) => name);
+		for (const name of candidateNames) {
+			const full = await this.getRegisteredMultisig(name, false);
+			const desc = full.descriptor;
+			const sameSigners =
+				desc.signers.length === target.signers.length &&
+				desc.signers.every((s, i) => {
+				const t = target.signers[i];
+				if (
+					!(s.fingerprint.length === t.fingerprint.length &&
+					  s.fingerprint.every((b, idx) => b === t.fingerprint[idx]))
+				) {
+					return false;
+				}
+				if (s.xpub !== t.xpub) return false;
+				if (
+					s.derivation.length !== t.derivation.length ||
+					s.derivation.some((v, idx) => v !== t.derivation[idx])
+				) {
+					return false;
+				}
+				return true;
+			});
+
+			if (sameSigners) {
+				// match 
+				return name;
+			}
+		}
+
+		// nothing matched
+		return undefined;
+	}
+
 
 	async getRegisteredMultisig(name: string, asFile: boolean = false): Promise<RegisteredMultisig> {
 		const params = {'multisig_name': name,

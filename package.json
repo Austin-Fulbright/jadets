@@ -1,6 +1,6 @@
 {
 	"name": "jadets",
-	"version": "1.1.5",
+	"version": "1.1.6",
 	"description": "jade impl in typescript",
 	"main": "./dist/index.js",
 	"module": "./dist/index.mjs",
@@ -40,6 +40,7 @@
 		"bip32-path": "^0.4.2",
 		"cbor2": "^2.0.1",
 		"express": "^5.1.0",
-		"tiny-secp256k1": "^2.2.3"
+		"tiny-secp256k1": "^2.2.3",
+		"uuid": "^11.1.0"
 	}
 }
