@@ -59,6 +59,10 @@ export interface IJade {
 		multisigName: string | undefined,
 		descriptor: MultisigDescriptor
 	): Promise<boolean>;
+	getMultiSigName(
+		network: string,
+		target: MultisigDescriptor
+	): Promise<string | undefined>
 	getRegisteredMultisigs(): Promise<Record<string, MultisigSummary>>;
 	getRegisteredMultisig(name: string, asFile?: boolean): Promise<RegisteredMultisig>;
 	getReceiveAddress(
