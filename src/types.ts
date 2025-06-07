@@ -56,7 +56,7 @@ export interface IJade {
 	getXpub(network: string, path: number[]): Promise<string>;
 	registerMultisig(
 		network: string,
-		multisigName: string,
+		multisigName: string | undefined,
 		descriptor: MultisigDescriptor
 	): Promise<boolean>;
 	getRegisteredMultisigs(): Promise<Record<string, MultisigSummary>>;

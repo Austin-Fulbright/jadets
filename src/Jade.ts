@@ -114,7 +114,7 @@ export class Jade implements IJade {
 
 	async registerMultisig(
 		network: string,
-		multisigName: string,
+		multisigName: string | undefined,
 		descriptor: MultisigDescriptor
 	): Promise<boolean> {
 		let mname = multisigName;
