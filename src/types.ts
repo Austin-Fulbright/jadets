@@ -22,6 +22,7 @@ export interface SerialPortOptions {
     device?: string;
     baudRate?: number;
     timeout?: number;
+	bufferSize?: number;
 };
 
 export interface JadeTransport extends EventEmitter {

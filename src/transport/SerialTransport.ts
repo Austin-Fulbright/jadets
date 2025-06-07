@@ -36,7 +36,8 @@ export class SerialTransport extends EventEmitter implements JadeTransport {
         throw new Error('No serial port selected.');
       }
 
-      await this.port.open({ baudRate: this.options.baudRate || 115200 });
+      await this.port.open({ baudRate: this.options.baudRate || 115200,
+							 bufferSize: this.options.bufferSize || 4 * 1024 });
       this.reader = this.port.readable?.getReader() || null;
       if (this.reader) {
         this.readLoop();
@@ -126,7 +127,6 @@ export class SerialTransport extends EventEmitter implements JadeTransport {
       }
       this.port = null;
       this.reader = null;
-      console.log('[WebSerialPort] Disconnected successfully.');
     } catch (error) {
       console.error('[WebSerialPort] Error during disconnect:', error);
     }

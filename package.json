@@ -1,6 +1,6 @@
 {
 	"name": "jadets",
-	"version": "1.0.10",
+	"version": "1.1.4",
 	"description": "jade impl in typescript",
 	"main": "./dist/index.js",
 	"module": "./dist/index.mjs",
@@ -11,7 +11,8 @@
 	"scripts": {
 		"build": "tsup",
 		"test:e2e": "mocha --loader ts-node/esm test/**/*.spec.ts",
-		"demo": "ts-node src/temp/demo.ts"
+		"demo": "ts-node src/temp/demo.ts",
+		"demo:web": "npm run build && node demo/server.js"
 	},
 	"repository": {
 		"type": "git",
@@ -38,6 +39,7 @@
 		"bip32": "^5.0.0-rc.0",
 		"bip32-path": "^0.4.2",
 		"cbor2": "^2.0.1",
+		"express": "^5.1.0",
 		"tiny-secp256k1": "^2.2.3"
 	}
 }
