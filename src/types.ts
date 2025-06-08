@@ -83,7 +83,8 @@ export interface IJade {
 export type MultisigVariant =
   | "sh(multi(k))"
   | "wsh(multi(k))"
-  | "sh(wsh(multi(k)))";
+  | "sh(wsh(multi(k)))"
+  | string;
 
 export interface MultisigDescriptor {
   variant: MultisigVariant;
@@ -110,7 +111,7 @@ export interface MultisigSummary {
   variant: string;
   sorted: boolean;
   threshold: number;
-  numSigners: number;
+  num_signers: number;
   masterBlindingKey: Uint8Array;
 }
 

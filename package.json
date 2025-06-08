@@ -1,6 +1,6 @@
 {
 	"name": "jadets",
-	"version": "1.1.8",
+	"version": "1.1.14",
 	"description": "jade impl in typescript",
 	"keywords": [
 		"jade",

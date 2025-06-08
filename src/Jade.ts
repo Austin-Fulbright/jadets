@@ -25,7 +25,6 @@ export class Jade implements IJade {
 		const requestId = id || Math.floor(Math.random() * 1000000).toString();
 		const request = this.iface.buildRequest(requestId, method, params);
 		const reply = await this.iface.makeRPCCall(request, long_timeout);
-		console.log("you are in new jade");
 
 		if (reply.error) {
 			throw new Error(`RPC Error ${reply.error.code}: ${reply.error.message}`);
@@ -138,47 +137,49 @@ export class Jade implements IJade {
 	async getMultiSigName(
 		network: string,
 		target: MultisigDescriptor
-	): Promise<string | undefined> {
+	): Promise<string|undefined> {
 		const summaries = await this.getRegisteredMultisigs();
-		const candidateNames = Object.entries(summaries)
-		.filter(
-			([name, sum]) =>
-			sum.variant === target.variant &&
-				sum.sorted === target.sorted &&
-				sum.threshold === target.threshold &&
-				sum.numSigners === target.signers.length
-		)
-		.map(([name]) => name);
-		for (const name of candidateNames) {
+
+		for (const [name, sum] of Object.entries(summaries)) {
+			if (
+				sum.variant !== target.variant ||
+				sum.sorted  !== target.sorted  ||
+			sum.threshold !== target.threshold ||
+		sum.num_signers !== target.signers.length
+			) {
+				continue;
+			}
+
 			const full = await this.getRegisteredMultisig(name, false);
 			const desc = full.descriptor;
-			const sameSigners =
-				desc.signers.length === target.signers.length &&
-				desc.signers.every((s, i) => {
+
+			const normalize = (o: any) =>
+			new Uint8Array(Object.values(o.fingerprint as Record<string, number>));
+
+			const match = desc.signers.length === target.signers.length
+			&& desc.signers.every((s, i) => {
 				const t = target.signers[i];
-				if (
-					!(s.fingerprint.length === t.fingerprint.length &&
-					  s.fingerprint.every((b, idx) => b === t.fingerprint[idx]))
-				) {
-					return false;
-				}
-				if (s.xpub !== t.xpub) return false;
-				if (
-					s.derivation.length !== t.derivation.length ||
-					s.derivation.some((v, idx) => v !== t.derivation[idx])
-				) {
-					return false;
-				}
-				return true;
+				const sf = normalize(s);
+				const tf = t.fingerprint;
+
+				if (sf.length !== tf.length
+					|| sf.some((b, idx) => b !== tf[idx])
+				   ) return false;
+
+				   if (s.xpub !== t.xpub) return false;
+
+				   if (s.derivation.length !== t.derivation.length
+					   || s.derivation.some((v, idx) => v !== t.derivation[idx])
+					  ) return false;
+
+					  return true;
 			});
 
-			if (sameSigners) {
-				// match 
+			if (match) {
 				return name;
 			}
 		}
 
-		// nothing matched
 		return undefined;
 	}
 
