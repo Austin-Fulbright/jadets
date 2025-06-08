@@ -127,7 +127,7 @@ export class Jade implements IJade {
 			multisig_name: mname,
 			descriptor,
 		};
-		return this._jadeRpc('register_multisig', params);
+		return this._jadeRpc('register_multisig', params, undefined, true);
 	}
 
 	async getRegisteredMultisigs(): Promise<Record<string, MultisigSummary>> {
@@ -220,14 +220,14 @@ export class Jade implements IJade {
 				throw new Error('ae sig not implemented');
 		} else {
 			const params = {'path': path, 'message': message }
-			return this._jadeRpc('sign_message', params);
+			return this._jadeRpc('sign_message', params, undefined, true);
 		}
 
 	}
 
 	async signPSBT(network: string, psbt: Uint8Array): Promise<Uint8Array> {
 		const params = {'network': network, 'psbt': psbt};
-		return this._jadeRpc('sign_psbt', params);
+		return this._jadeRpc('sign_psbt', params, undefined, true);
 	}
 
 	async getMasterFingerPrint(network: string): Promise<null | string>{
