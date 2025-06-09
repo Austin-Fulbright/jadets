@@ -1,6 +1,6 @@
 {
 	"name": "jadets",
-	"version": "1.1.15",
+	"version": "1.1.17",
 	"description": "jade impl in typescript",
 	"keywords": [
 		"jade",
@@ -22,6 +22,8 @@
 	],
 	"scripts": {
 		"build": "tsup",
+		"clean": "rm -rf node_modules package-lock.json",
+		"clean:build": "rm -rf dist build out",
 		"test:e2e": "mocha --loader ts-node/esm test/**/*.spec.ts",
 		"demo": "ts-node src/temp/demo.ts",
 		"demo:web": "npm run build && node demo/server.js"
@@ -51,8 +53,6 @@
 		"bip32": "^5.0.0-rc.0",
 		"bip32-path": "^0.4.2",
 		"cbor2": "^2.0.1",
-		"express": "^5.1.0",
-		"tiny-secp256k1": "^2.2.3",
-		"uuid": "^11.1.0"
+		"tiny-secp256k1": "^2.2.3"
 	}
 }

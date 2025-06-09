@@ -3,8 +3,6 @@ import { IJadeInterface, IJade, SignerDescriptor, MultisigSummary, RegisteredMul
 
 import { getFingerprintFromXpub } from './utils' 
 
-import { v4 as uuidv4 } from 'uuid';
-
 import { randomBytes } from 'crypto';
 
 export class Jade implements IJade {
