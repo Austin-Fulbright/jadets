@@ -8,6 +8,12 @@ export interface RPCRequest {
 	params?: any;
 };
 
+export interface ExtendedDataResponse {
+	seqnum: number;
+	seqlen: number;
+	data?: any;
+}
+
 export interface RPCResponse {
 	id: string;
 	result?: any;
@@ -16,6 +22,9 @@ export interface RPCResponse {
 		message: string;
 		data?: any;
 	};
+
+	seqnum?: number;
+	seqlen?: number;
 };
 
 export interface SerialPortOptions {
