@@ -32,14 +32,17 @@ const TESTNET_BIP32: NetworkType = {
   scriptHash: 0xc4,
 }
 
+function toBip32Net(n: string): NetworkType {
+  if (n === 'testnet' || n === 'regtest' || n === 'localtest') return TESTNET_BIP32;
+  return MAINNET_BIP32;
+}
+
 export function getFingerprintFromXpub(xpub: string, networkType: string): string | null {
 	try {
-
-		const network: NetworkType = networkType === 'testnet' ? TESTNET_BIP32 : MAINNET_BIP32
-		const node: BIP32Interface = bip32.fromBase58(xpub, network)
-		return Buffer.from(node.fingerprint).toString('hex')
+		const node: BIP32Interface = bip32.fromBase58(xpub, toBip32Net(networkType));
+		return Buffer.from(node.fingerprint).toString('hex');
 	} catch (err) {
-		console.error('Error getting fingerprint:', err)
+		console.error('Error getting fingerprint:', err);
 		return null
 	}
 }
