@@ -1,5 +1,5 @@
 //Jade.ts
-import { IJadeInterface, IJade, SignerDescriptor, MultisigSummary, RegisteredMultisig, ReceiveOptions, MultisigDescriptor, RegisterMultisigParams } from './types';
+import { IJadeInterface, IJade, SignerDescriptor, MultisigSummary, RegisteredMultisig, ReceiveOptions, MultisigDescriptor, RegisterMultisigParams, JadeHttpRequestFunction } from './types';
 
 import { getFingerprintFromXpub } from './utils' 
 
@@ -18,7 +18,7 @@ export class Jade implements IJade {
 		params?: any,
 		id?: string,
 		long_timeout: boolean = false,
-			http_request_fn?: (params: any) => Promise<{ body: any }>
+		http_request_fn?: JadeHttpRequestFunction 
 	): Promise<any> {
 		const requestId = id || Math.floor(Math.random() * 1000000).toString();
 		const request = this.iface.buildRequest(requestId, method, params);
@@ -75,8 +75,8 @@ export class Jade implements IJade {
 
 	async authUser(
 		network: string,
-		http_request_fn?: (params: any) => Promise<{ body: any }>,
-			epoch?: number
+		http_request_fn?: JadeHttpRequestFunction, 
+		epoch?: number
 	): Promise<boolean> {
 		if (typeof network !== 'string' || network.length === 0) {
 			throw new Error('authUser: "network" must be a non-empty string');

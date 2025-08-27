@@ -27,6 +27,27 @@ export interface RPCResponse {
 	seqlen?: number;
 };
 
+export interface JadeHttpRequestParams {
+  urls: Array<{
+    url?: string;
+    onion?: string;
+  }> | string[];
+  method: 'POST' | 'GET';
+  accept: 'json';
+  data: {
+    data: string;
+  };
+}
+
+export interface JadeHttpResponse {
+  body: {
+    data?: string;
+    [key: string]: any; // Allow additional fields from pinserver
+  };
+}
+
+export type JadeHttpRequestFunction = (params: JadeHttpRequestParams) => Promise<JadeHttpResponse>;
+
 export interface SerialPortOptions {
     device?: string;
     baudRate?: number;
@@ -56,7 +77,7 @@ export interface IJade {
 	setMnemonic(mnemonic: string, passphrase?: string, temporaryWallet?: boolean): Promise<boolean>; 
 	authUser(
 		network: string,
-		http_request_fn?: (params: any) => Promise<{ body: any }>,
+		http_request_fn?: JadeHttpRequestFunction, 
 		epoch?: number
 	): Promise<boolean>; 
 	addEntropy(entropy: Uint8Array): Promise<boolean>;
