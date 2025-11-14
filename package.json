@@ -25,9 +25,11 @@
 		"dist"
 	],
 	"scripts": {
-		"build": "tsup",
+		"build": "tsc --noEmit && tsup",
 		"clean": "rm -rf node_modules package-lock.json",
 		"clean:build": "rm -rf dist build out",
+		"lint": "eslint .",
+		"lint:fix": "eslint . --fix",
 		"test:e2e": "mocha --loader ts-node/esm test/**/*.spec.ts",
 		"demo": "ts-node src/temp/demo.ts",
 		"demo:web": "npm run build && node demo/server.js"
@@ -46,12 +48,19 @@
 		"@types/jest": "^29.5.14",
 		"@types/mocha": "^10.0.10",
 		"@types/node": "^22.15.29",
+		"@typescript-eslint/eslint-plugin": "^8.46.4",
+		"@typescript-eslint/parser": "^8.46.4",
+		"eslint": "^9.39.1",
+		"eslint-config-prettier": "^10.1.8",
+		"eslint-plugin-prettier": "^5.5.4",
 		"jest": "^29.7.0",
 		"mocha": "^11.5.0",
+		"prettier": "^3.6.2",
 		"ts-jest": "^29.3.4",
 		"ts-node": "^10.9.2",
 		"tsup": "^8.5.0",
-		"typescript": "^5.8.3"
+		"typescript": "^5.8.3",
+		"typescript-eslint": "^8.46.4"
 	},
 	"dependencies": {
 		"bip32": "^5.0.0-rc.0",

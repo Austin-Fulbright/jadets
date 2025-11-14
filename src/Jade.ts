@@ -1,5 +1,5 @@
 //Jade.ts
-import { IJadeInterface, IJade, SignerDescriptor, MultisigSummary, RegisteredMultisig, ReceiveOptions, MultisigDescriptor, RegisterMultisigParams, JadeHttpRequestFunction } from './types';
+import { IJadeInterface, IJade, MultisigSummary, RegisteredMultisig, ReceiveOptions, MultisigDescriptor, RegisterMultisigParams, JadeHttpRequestFunction } from './types';
 
 import { getFingerprintFromXpub } from './utils' 
 
@@ -9,20 +9,20 @@ export class Jade implements IJade {
 
 	constructor(private iface: IJadeInterface) {}
 
-	async connect() { return this.iface.connect(); }
-	async disconnect() { return this.iface.disconnect(); }
+	async connect(): Promise<void>{ return this.iface.connect(); }
+	async disconnect(): Promise<void>{ return this.iface.disconnect(); }
 
 
-	private async _jadeRpc(
+	private async _jadeRpc<TResult = unknown, TParams = unknown>(
 		method: string,
-		params?: any,
+		params?: TParams,
 		id?: string,
 		long_timeout: boolean = false,
 		http_request_fn?: JadeHttpRequestFunction 
-	): Promise<any> {
+	): Promise<TResult> {
 		const requestId = id || Math.floor(Math.random() * 1000000).toString();
-		const request = this.iface.buildRequest(requestId, method, params);
-		const reply = await this.iface.makeRPCCall(request, long_timeout);
+		const request = this.iface.buildRequest<TParams>(requestId, method, params);
+		const reply = await this.iface.makeRPCCall<TResult, TParams>(request, long_timeout);
 
 		if (reply.error) {
 			throw new Error(`RPC Error ${reply.error.code}: ${reply.error.message}`);
@@ -46,7 +46,7 @@ export class Jade implements IJade {
 			);
 		}
 
-		return reply.result;
+		return reply.result as TResult;
 	}
 
 	async cleanReset(): Promise<boolean> {

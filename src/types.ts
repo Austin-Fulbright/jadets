@@ -2,30 +2,31 @@
 
 import EventEmitter from "events";
 
-export interface RPCRequest {
+export interface RPCRequest<TParams = unknown> {
 	id: string;
 	method: string;
-	params?: any;
+	params?: TParams;
 };
 
-export interface ExtendedDataResponse {
-	seqnum: number;
-	seqlen: number;
-	data?: any;
-}
-
-export interface RPCResponse {
+export interface RPCResponse<TResult = unknown> {
 	id: string;
-	result?: any;
+	result?: TResult;
 	error?: {
 		code: number,
 		message: string;
-		data?: any;
+		data?: unknown;
 	};
 
 	seqnum?: number;
 	seqlen?: number;
 };
+
+export interface ExtendedDataResponse<TData = unknown>{ 
+	seqnum: number;
+	seqlen: number;
+	data?: unknown;
+}
+
 
 export interface JadeHttpRequestParams {
   urls: Array<{
@@ -42,7 +43,7 @@ export interface JadeHttpRequestParams {
 export interface JadeHttpResponse {
   body: {
     data?: string;
-    [key: string]: any; // Allow additional fields from pinserver
+    [key: string]: unknown; // Allow additional fields from pinserver
   };
 }
 
@@ -58,14 +59,14 @@ export interface SerialPortOptions {
 export interface JadeTransport extends EventEmitter {
 	connect(): Promise<void>;
 	disconnect(): Promise<void>;
-	sendMessage(msg: any): Promise<void>;
-	onMessage(callback: (msg: any) => void): void;
+	sendMessage(msg: RPCRequest<unknown>): Promise<void>;
+	onMessage(callback: (msg: RPCResponse<unknown>) => void): void;
 }
 export interface IJadeInterface {
 	connect(): Promise<void>;
 	disconnect(): Promise<void>;
-	buildRequest(id: string, method: string, params?: any): RPCRequest;
-	makeRPCCall(request: RPCRequest, long_timeout: boolean): Promise<RPCResponse>;
+	buildRequest<TParams = unknown>(id: string, method: string, params?: TParams): RPCRequest<TParams>;
+	makeRPCCall<TResult = unknown, TParams = unknown>(request: RPCRequest<TParams>, long_timeout: boolean): Promise<RPCResponse<TResult>>;
 };
 
 export interface IJade {

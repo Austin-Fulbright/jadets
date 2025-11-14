@@ -1,26 +1,25 @@
 // interface/JadeInterface.ts
-import cbor from "cbor2";
 import { JadeTransport, IJadeInterface, RPCRequest, RPCResponse } from "../types";
 
 export class JadeInterface implements IJadeInterface {
   constructor(private transport: JadeTransport) {}
 
-  async connect() {
+  async connect(): Promise<void> {
     await this.transport.connect();
   }
 
-  async disconnect() {
+  async disconnect(): Promise<void>{
     await this.transport.disconnect();
   }
 
-  buildRequest(id: string, method: string, params?: any): RPCRequest {
+  buildRequest<TParams = unknown>(id: string, method: string, params?: TParams): RPCRequest<TParams> {
     return { id, method, params };
   }
 
   /**
    * Makes an RPC call and handles extended data responses automatically
    */
-  async makeRPCCall(request: RPCRequest, long_timeout: boolean = false): Promise<RPCResponse> {
+  async makeRPCCall<TResult = unknown, TParams = unknown>(request: RPCRequest<TParams>, long_timeout: boolean = false): Promise<RPCResponse<TResult>> {
     if (!request.id || request.id.length > 16) {
       throw new Error('Request id must be non-empty and less than 16 characters');
     }
@@ -28,23 +27,26 @@ export class JadeInterface implements IJadeInterface {
       throw new Error('Request method must be non-empty and less than 32 characters');
     }
 
-    await this.transport.sendMessage(request);
+    await this.transport.sendMessage<TParams>(request);
     
-    const initialResponse = await this.waitForResponse(request.id, long_timeout);
+    const initialResponse = await this.waitForResponse<TResult>(request.id, long_timeout);
     
+	let finalResponse: RPCResponse<unknown>;
     if (this.isExtendedDataResponse(initialResponse)) {
-      return await this.handleExtendedDataResponse(initialResponse, request.id, long_timeout);
-    }
-    
-    return initialResponse;
+      finalResponse = await this.handleExtendedDataResponse(initialResponse, request.id, long_timeout);
+    } else {
+		finalResponse = initialResponse;
+	}
+
+	return finalResponse as RPCResponse<TResult>;
   }
 
   /**
    * Waits for a single response message
    */
-  private async waitForResponse(requestId: string, long_timeout: boolean): Promise<RPCResponse> {
-    return new Promise<RPCResponse>((resolve, reject) => {
-      const onResponse = (msg: RPCResponse) => {
+  private async waitForResponse<TResult = unknown>(requestId: string, long_timeout: boolean): Promise<RPCResponse<TResult>> {
+    return new Promise<RPCResponse<TResult>>((resolve, reject) => {
+      const onResponse = (msg: RPCResponse<unknown>) => {
         if (msg && msg.id === requestId) {
           this.transport.removeListener('message', onResponse);
           if (timeoutId) clearTimeout(timeoutId);
@@ -67,7 +69,7 @@ export class JadeInterface implements IJadeInterface {
   /**
    * Checks if a response indicates extended data
    */
-  private isExtendedDataResponse(response: RPCResponse): boolean {
+  private isExtendedDataResponse(response: RPCResponse<unknown>): boolean {
     return response.seqnum !== undefined && 
            response.seqlen !== undefined && 
            response.seqnum < response.seqlen;
@@ -80,14 +82,14 @@ export class JadeInterface implements IJadeInterface {
     initialResponse: RPCResponse, 
     requestId: string, 
     long_timeout: boolean
-  ): Promise<RPCResponse> {
-    const chunks: RPCResponse[] = [initialResponse];
+  ): Promise<RPCResponse<unknown>> {
+    const chunks: RPCResponse<unknown>[] = [initialResponse];
     const totalChunks = initialResponse.seqlen!;
     
     console.log(`Receiving extended data: chunk ${initialResponse.seqnum! + 1}/${totalChunks}`);
 
     for (let expectedSeqnum = initialResponse.seqnum! + 1; expectedSeqnum < totalChunks; expectedSeqnum++) {
-      const extendedRequest: RPCRequest = {
+      const extendedRequest: RPCRequest<{ seqnum: number }> = {
         id: requestId,
         method: 'get_extended_data',
         params: { seqnum: expectedSeqnum }
@@ -113,10 +115,10 @@ export class JadeInterface implements IJadeInterface {
   /**
    * Reassembles chunks into a complete response
    */
-  private reassembleExtendedData(chunks: RPCResponse[]): RPCResponse {
+  private reassembleExtendedData(chunks: RPCResponse<unknown>[]): RPCResponse {
     chunks.sort((a, b) => (a.seqnum || 0) - (b.seqnum || 0));
 
-    const completeResponse: RPCResponse = {
+    const completeResponse: RPCResponse<unknown> = {
       id: chunks[0].id,
       error: chunks[0].error
     };
@@ -131,7 +133,7 @@ export class JadeInterface implements IJadeInterface {
     return completeResponse;
   }
 
-  private mergeChunkData(chunks: RPCResponse[]): any {
+  private mergeChunkData(chunks: RPCResponse<unknown>[]): unknown {
     const firstResult = chunks[0].result;
 
     if (firstResult instanceof Uint8Array) {
@@ -158,18 +160,18 @@ export class JadeInterface implements IJadeInterface {
 
     if (Array.isArray(firstResult)) {
       return chunks.reduce((merged, chunk) => {
-        return merged.concat(chunk.result);
+        return (merged as unknown[]).concat(chunk.result);
       }, []);
     }
 
     if (typeof firstResult === 'string') {
-      return chunks.map(chunk => chunk.result).join('');
+      return chunks.map(chunk => chunk.result as string).join('');
     }
 
     if (typeof firstResult === 'object' && firstResult !== null) {
       return chunks.reduce((merged, chunk) => {
-        return { ...merged, ...chunk.result };
-      }, {});
+        return { ...(merged as object), ...(chunk.result as object) };
+      }, {} as object);
     }
 
     console.warn('Unknown data type for extended data merge, returning first chunk');
