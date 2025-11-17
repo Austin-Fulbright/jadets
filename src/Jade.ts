@@ -1,5 +1,5 @@
 //Jade.ts
-import { IJadeInterface, IJade, MultisigSummary, RegisteredMultisig, ReceiveOptions, MultisigDescriptor, RegisterMultisigParams, JadeHttpRequestFunction } from './types';
+import { IJadeInterface, IJade, MultisigSummary, RegisteredMultisig, RegisteredMultisigSigner, ReceiveOptions, MultisigDescriptor, RegisterMultisigParams, JadeHttpRequestFunction, JadeHttpContinue, JadeVersionInfo, SetMnemonicParams, ReceiveAddressParams } from './types';
 
 import { getFingerprintFromXpub } from './utils' 
 
@@ -35,11 +35,11 @@ export class Jade implements IJade {
 				throw new Error('HTTP request function not provided');
 			}
 
-			const httpRequest = reply.result['http_request'];
-			const httpResponse = await http_request_fn(httpRequest['params']);
+			const { http_request } = reply.result as JadeHttpContinue;
+			const httpResponse = await http_request_fn(http_request['params']);
 			return this._jadeRpc(
-				httpRequest['on-reply'],
-				httpResponse['body'],
+				http_request['on-reply'],
+				httpResponse.body,
 				undefined,
 				long_timeout,
 				http_request_fn
@@ -57,20 +57,20 @@ export class Jade implements IJade {
 		return this._jadeRpc("ping"); 
 	}
 
-	async getVersionInfo(nonblocking: boolean = false): Promise<any> {
+	async getVersionInfo(nonblocking: boolean = false): Promise<JadeVersionInfo> {
 		const params = nonblocking ? { nonblocking: true } : undefined;
-		return this._jadeRpc('get_version_info', params);
+		return this._jadeRpc<JadeVersionInfo>('get_version_info', params);
 	}
 	async setMnemonic(
 		mnemonic: string,
 		passphrase?: string,
 		temporaryWallet = false
 	): Promise<boolean> {
-		const params: Record<string, any> = { mnemonic, temporary_wallet: temporaryWallet };
+		const params: SetMnemonicParams = { mnemonic, temporary_wallet: temporaryWallet };
 		if (passphrase !== undefined) {
 			params.passphrase = passphrase;
 		}
-		return this._jadeRpc('debug_set_mnemonic', params);
+		return this._jadeRpc<boolean, SetMnemonicParams>('debug_set_mnemonic', params);
 	}
 
 	async authUser(
@@ -151,13 +151,18 @@ export class Jade implements IJade {
 			const full = await this.getRegisteredMultisig(name, false);
 			const desc = full.descriptor;
 
-			const normalize = (o: any) =>
-			new Uint8Array(Object.values(o.fingerprint as Record<string, number>));
+			const normalize = (fp: RegisteredMultisigSigner['fingerprint']): Uint8Array => {
+				if (fp instanceof Uint8Array) {
+					return fp;
+				}
+
+				return new Uint8Array(Object.values(fp));
+			};
 
 			const match = desc.signers.length === target.signers.length
 			&& desc.signers.every((s, i) => {
 				const t = target.signers[i];
-				const sf = normalize(s);
+				const sf = normalize(s.fingerprint);
 				const tf = t.fingerprint;
 
 				if (sf.length !== tf.length
@@ -193,7 +198,7 @@ export class Jade implements IJade {
 		network: string,
 		opts: ReceiveOptions
 	): Promise<string> {
-		const params: any = { network };
+		const params: ReceiveAddressParams = { network };
 
 		if (opts.path)           params.path = opts.path;
 		if (opts.paths)          params.paths = opts.paths;
@@ -204,15 +209,16 @@ export class Jade implements IJade {
 		if (opts.csvBlocks)      params.csv_blocks = opts.csvBlocks;
 		if (opts.confidential)   params.confidential = opts.confidential;
 
-		return this._jadeRpc("get_receive_address", params);
+		return this._jadeRpc<string, ReceiveAddressParams>("get_receive_address", params);
 	}
 
 	async signMessage(
 		path: number[],
 		message: string,
 		useAeSignatures?: boolean,
-		aeHostCommitment?: Uint8Array,
-		aeHostEntropy?: Uint8Array
+		//aeHostCommitment?: Uint8Array,
+		//aeHostEntropy?: Uint8Array
+		// TODO - add aeHostCommitment and aeHostEntropy
 	): Promise<Uint8Array | [Uint8Array, Uint8Array]> {
 		if (useAeSignatures) {
 				throw new Error('ae sig not implemented');

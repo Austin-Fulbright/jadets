@@ -27,9 +27,9 @@ export class JadeInterface implements IJadeInterface {
       throw new Error('Request method must be non-empty and less than 32 characters');
     }
 
-    await this.transport.sendMessage<TParams>(request);
+    await this.transport.sendMessage(request);
     
-    const initialResponse = await this.waitForResponse<TResult>(request.id, long_timeout);
+    const initialResponse = await this.waitForResponse(request.id, long_timeout);
     
 	let finalResponse: RPCResponse<unknown>;
     if (this.isExtendedDataResponse(initialResponse)) {
@@ -44,9 +44,9 @@ export class JadeInterface implements IJadeInterface {
   /**
    * Waits for a single response message
    */
-  private async waitForResponse<TResult = unknown>(requestId: string, long_timeout: boolean): Promise<RPCResponse<TResult>> {
-    return new Promise<RPCResponse<TResult>>((resolve, reject) => {
-      const onResponse = (msg: RPCResponse<unknown>) => {
+  private async waitForResponse(requestId: string, long_timeout: boolean): Promise<RPCResponse<unknown>> {
+    return new Promise<RPCResponse<unknown>>((resolve, reject) => {
+      const onResponse = (msg: RPCResponse<unknown>): void => {
         if (msg && msg.id === requestId) {
           this.transport.removeListener('message', onResponse);
           if (timeoutId) clearTimeout(timeoutId);
@@ -159,9 +159,10 @@ export class JadeInterface implements IJadeInterface {
     }
 
     if (Array.isArray(firstResult)) {
-      return chunks.reduce((merged, chunk) => {
-        return (merged as unknown[]).concat(chunk.result);
-      }, []);
+      return chunks.reduce<unknown[]>((merged, chunk) => {
+		  const chunkData = chunk.result as unknown[];
+        return merged.concat(chunkData); 
+      }, [] as unknown[]);
     }
 
     if (typeof firstResult === 'string') {

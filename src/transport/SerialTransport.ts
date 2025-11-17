@@ -1,11 +1,23 @@
 // transport/SerialTransport.ts
 import { EventEmitter } from 'events';
-import { SerialPortOptions, JadeTransport } from "../types";
+import { SerialPortOptions, JadeTransport, RPCResponse, RPCRequest } from "../types";
 import { encode, decode } from 'cbor2';
+
+type WebSerialPort = {
+  open(options: { baudRate: number; bufferSize?: number }): Promise<void>;
+  close(): Promise<void>;
+  readable: ReadableStream<Uint8Array> | null;
+  writable: WritableStream<Uint8Array> | null;
+};
+
+type WebSerial = {
+  getPorts(): Promise<WebSerialPort[]>;
+  requestPort(): Promise<WebSerialPort>;
+};
 
 export class SerialTransport extends EventEmitter implements JadeTransport {
   private options: SerialPortOptions;
-  private port: any | null = null;
+  private port: WebSerialPort | null = null;
   private reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
   private receivedBuffer: Uint8Array = new Uint8Array(0);
 
@@ -20,12 +32,12 @@ export class SerialTransport extends EventEmitter implements JadeTransport {
 
   async connect(): Promise<void> {
     try {
-      const serial = (navigator as any).serial;
+	  const serial = (navigator as Navigator & { serial?: WebSerial }).serial;
       if (!serial) {
         throw new Error('Web Serial API is not supported in this browser.');
       }
 
-      const ports: any[] = await serial.getPorts();
+      const ports = await serial.getPorts();
       if (ports.length === 0) {
         this.port = await serial.requestPort();
       } else {
@@ -90,13 +102,14 @@ export class SerialTransport extends EventEmitter implements JadeTransport {
         }
         this.receivedBuffer = this.receivedBuffer.slice(index);
         index = 1;
-      } catch (error: any) {
+      } catch (error: unknown) {
         if (
+		error instanceof Error && (
           error.message &&
           (error.message.includes('Offset is outside') ||
             error.message.includes('Insufficient data') ||
             error.message.includes('Unexpected end of stream'))
-        ) {
+		)) {
           index++;
           if (index > this.receivedBuffer.length) {
             break;
@@ -132,7 +145,7 @@ export class SerialTransport extends EventEmitter implements JadeTransport {
     }
   }
 
-  async sendMessage(message: any): Promise<void> {
+  async sendMessage(message: RPCRequest<unknown>): Promise<void> {
     try {
       if (!this.port || !this.port.writable) {
         throw new Error('Port not available');
@@ -147,7 +160,7 @@ export class SerialTransport extends EventEmitter implements JadeTransport {
     }
   }
 
-  onMessage(callback: (message: any) => void): void {
+  onMessage(callback: (message: RPCResponse<unknown>) => void): void {
     this.on('message', callback);
   }
 }

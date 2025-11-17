@@ -24,7 +24,7 @@ export interface RPCResponse<TResult = unknown> {
 export interface ExtendedDataResponse<TData = unknown>{ 
 	seqnum: number;
 	seqlen: number;
-	data?: unknown;
+	data?: TData;
 }
 
 
@@ -40,6 +40,13 @@ export interface JadeHttpRequestParams {
   };
 }
 
+export interface JadeHttpContinue {
+	http_request: {
+		params: JadeHttpRequestParams;
+		'on-reply': string;
+	};
+}
+
 export interface JadeHttpResponse {
   body: {
     data?: string;
@@ -48,6 +55,48 @@ export interface JadeHttpResponse {
 }
 
 export type JadeHttpRequestFunction = (params: JadeHttpRequestParams) => Promise<JadeHttpResponse>;
+
+
+/* Result types from function calls */
+
+export interface JadeVersionInfo {
+  JADE_VERSION: string;
+  JADE_OTA_MAX_CHUNK: number;
+  JADE_CONFIG: string;
+  BOARD_TYPE: string;
+  JADE_FEATURES: string;
+  IDF_VERSION: string;
+  CHIP_FEATURES: string;
+  EFUSEMAC: string;
+  BATTERY_STATUS: number;
+  JADE_STATE: string;
+  JADE_NETWORKS: string;
+  JADE_HAS_PIN: boolean;
+}
+
+
+/* Param types from functions */
+
+export interface SetMnemonicParams {
+  mnemonic: string;
+  temporary_wallet: boolean;
+  passphrase?: string;
+}
+
+export interface ReceiveAddressParams {
+  network: string;
+
+  path?: number[];
+  paths?: number[][];
+
+  multisig_name?: string;
+  descriptor_name?: string;
+  variant?: string;
+
+  recovery_xpub?: Uint8Array;
+  csv_blocks?: number;
+  confidential?: boolean;
+}
 
 export interface SerialPortOptions {
     device?: string;
@@ -62,6 +111,7 @@ export interface JadeTransport extends EventEmitter {
 	sendMessage(msg: RPCRequest<unknown>): Promise<void>;
 	onMessage(callback: (msg: RPCResponse<unknown>) => void): void;
 }
+
 export interface IJadeInterface {
 	connect(): Promise<void>;
 	disconnect(): Promise<void>;
@@ -74,7 +124,7 @@ export interface IJade {
 	disconnect(): Promise<void>;
 	cleanReset(): Promise<boolean>;
 	ping(): Promise<0|1|2>;
-	getVersionInfo(nonblocking?: boolean): Promise<any>;
+	getVersionInfo(nonblocking?: boolean): Promise<JadeVersionInfo>;
 	setMnemonic(mnemonic: string, passphrase?: string, temporaryWallet?: boolean): Promise<boolean>; 
 	authUser(
 		network: string,
@@ -104,8 +154,6 @@ export interface IJade {
 		path: number[],
 		message: string,
 		useAeSignatures?: boolean,
-		aeHostCommitment?: Uint8Array,
-		aeHostEntropy?: Uint8Array
 	): Promise<Uint8Array | [Uint8Array, Uint8Array]>;
 	signPSBT(network: string, psbt: Uint8Array): Promise<Uint8Array>;
 	getMasterFingerPrint(network: string): Promise<null | string>;
@@ -138,6 +186,15 @@ export interface SignerDescriptor {
   path?: number[];
 }
 
+export type RegisteredFingerprint = Uint8Array | Record<string, number>;
+
+export interface RegisteredMultisigSigner {
+	fingerprint: RegisteredFingerprint;
+	derivation: number[];
+	xpub: string;
+	path?: number;
+}
+
 export interface MultisigSummary {
   variant: string;
   sorted: boolean;
@@ -152,7 +209,7 @@ export interface RegisteredMultisig {
     variant: string;
     sorted: boolean;
     threshold: number;
-    signers: SignerDescriptor[];
+    signers: RegisteredMultisigSigner[];
     masterBlindingKey?: Uint8Array;
   };
 }
