@@ -30,7 +30,8 @@
 		"clean:build": "rm -rf dist build out",
 		"lint": "eslint .",
 		"lint:fix": "eslint . --fix",
-		"test:e2e": "mocha --loader ts-node/esm test/**/*.spec.ts",
+		"test": "jest",
+		"test:unit": "jest",
 		"demo": "ts-node src/temp/demo.ts",
 		"demo:web": "npm run build && node demo/server.js"
 	},
