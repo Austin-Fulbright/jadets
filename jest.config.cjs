@@ -1,23 +1,9 @@
-/** @type {import('ts-jest').JestConfigWithTsJest} */
+/** @type {import('jest').Config} */
 module.exports = {
-  preset: 'ts-jest/presets/default-esm',  // ← use the ESM preset
+  preset: 'ts-jest',
   testEnvironment: 'node',
-
-  extensionsToTreatAsEsm: ['.ts'],        // ← let .ts be loaded as ESM
-
-  globals: {
-    'ts-jest': {
-      tsconfig: {
-        module: 'ESNext',    // compile your TS into ES modules
-        target: 'ES2020',
-        allowJs: true,       // in case any .js needs compiling
-        esModuleInterop: true
-      },
-    },
-  },
-
-  testMatch: ['<rootDir>/tests/**/*.spec.ts'],
-
-  moduleFileExtensions: ['ts','js','json','node'],
+  testMatch: [
+    '<rootDir>/tests/unit/**/*.test.ts',
+    '<rootDir>/tests/integration/**/*.test.ts',
+  ],
 };
-
