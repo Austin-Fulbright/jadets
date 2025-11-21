@@ -63,7 +63,6 @@ describe('Jade _jadeRpc integration', () => {
     await expect(resultPromise).rejects.toThrow('RPC Error 123: Something went wrong');
   });
 
-
 });
 
 

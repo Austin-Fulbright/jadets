@@ -1,7 +1,7 @@
 //Jade.ts
 import { IJadeInterface, IJade, MultisigSummary, RegisteredMultisig, RegisteredMultisigSigner, ReceiveOptions, MultisigDescriptor, RegisterMultisigParams, JadeHttpRequestFunction, JadeHttpContinue, JadeVersionInfo, SetMnemonicParams, ReceiveAddressParams } from './types';
 
-import { getFingerprintFromXpub } from './utils' 
+import { getFingerprintFromXpub, generateId } from './utils' 
 
 import { randomBytes } from 'crypto';
 
@@ -20,8 +20,9 @@ export class Jade implements IJade {
 		long_timeout: boolean = false,
 		http_request_fn?: JadeHttpRequestFunction 
 	): Promise<TResult> {
-		const requestId = id || Math.floor(Math.random() * 1000000).toString();
+		const requestId = id ?? generateId(); 
 		const request = this.iface.buildRequest<TParams>(requestId, method, params);
+		console.log(request);
 		const reply = await this.iface.makeRPCCall<TResult, TParams>(request, long_timeout);
 
 		if (reply.error) {

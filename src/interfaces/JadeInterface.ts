@@ -1,5 +1,6 @@
 // interface/JadeInterface.ts
 import { JadeTransport, IJadeInterface, RPCRequest, RPCResponse } from "../types";
+import { generateId } from "../utils";
 
 export class JadeInterface implements IJadeInterface {
   constructor(private transport: JadeTransport) {}
@@ -30,10 +31,12 @@ export class JadeInterface implements IJadeInterface {
     await this.transport.sendMessage(request);
     
     const initialResponse = await this.waitForResponse(request.id, long_timeout);
-    
+    console.log('initialResponse in makeRPCCall', initialResponse);
+	console.log('isExtended?', this.isExtendedDataResponse(initialResponse));
+
 	let finalResponse: RPCResponse<unknown>;
     if (this.isExtendedDataResponse(initialResponse)) {
-      finalResponse = await this.handleExtendedDataResponse(initialResponse, request.id, long_timeout);
+      finalResponse = await this.handleExtendedDataResponse(initialResponse, request, long_timeout);
     } else {
 		finalResponse = initialResponse;
 	}
@@ -47,7 +50,9 @@ export class JadeInterface implements IJadeInterface {
   private async waitForResponse(requestId: string, long_timeout: boolean): Promise<RPCResponse<unknown>> {
     return new Promise<RPCResponse<unknown>>((resolve, reject) => {
       const onResponse = (msg: RPCResponse<unknown>): void => {
+		console.log('[waitForResponse] saw message', { requestId, msgId: msg.id });
         if (msg && msg.id === requestId) {
+          console.log('[waitForResponse] matched requestId, resolving');
           this.transport.removeListener('message', onResponse);
           if (timeoutId) clearTimeout(timeoutId);
           resolve(msg);
@@ -80,33 +85,44 @@ export class JadeInterface implements IJadeInterface {
    */
   private async handleExtendedDataResponse(
     initialResponse: RPCResponse, 
-    requestId: string, 
+	originalRequest: RPCRequest<unknown>,
     long_timeout: boolean
   ): Promise<RPCResponse<unknown>> {
     const chunks: RPCResponse<unknown>[] = [initialResponse];
     const totalChunks = initialResponse.seqlen!;
-    
-    console.log(`Receiving extended data: chunk ${initialResponse.seqnum! + 1}/${totalChunks}`);
+	const firstSeq = initialResponse.seqnum!;
 
-    for (let expectedSeqnum = initialResponse.seqnum! + 1; expectedSeqnum < totalChunks; expectedSeqnum++) {
-      const extendedRequest: RPCRequest<{ seqnum: number }> = {
-        id: requestId,
+	if (firstSeq !== 1) {
+	  throw new Error(`Expected chunk 1, got ${firstSeq}`);
+	}
+    
+    for (let nextSeq = firstSeq + 1; nextSeq <= totalChunks; nextSeq++) {
+	  const contId = generateId(); 
+
+	  const params = {
+		  origid: originalRequest.id,
+		  orig: originalRequest.method,
+		  seqnum: nextSeq,
+		  seqlen: totalChunks,
+	  };
+
+      const extendedRequest: RPCRequest<typeof params> = {
+        id: contId,
         method: 'get_extended_data',
-        params: { seqnum: expectedSeqnum }
+        params, 
       };
 
       await this.transport.sendMessage(extendedRequest);
-      const chunkResponse = await this.waitForResponse(requestId, long_timeout);
+      const chunkResponse = await this.waitForResponse(contId, long_timeout);
 
-      if (chunkResponse.seqnum !== expectedSeqnum) {
-        throw new Error(`Expected chunk ${expectedSeqnum}, got ${chunkResponse.seqnum}`);
+      if (chunkResponse.seqnum !== nextSeq) {
+        throw new Error(`Expected chunk ${nextSeq}, got ${chunkResponse.seqnum}`);
       }
       if (chunkResponse.seqlen !== totalChunks) {
         throw new Error(`Inconsistent seqlen: expected ${totalChunks}, got ${chunkResponse.seqlen}`);
       }
 
       chunks.push(chunkResponse);
-      console.log(`Received extended data chunk: ${expectedSeqnum + 1}/${totalChunks}`);
     }
 
     return this.reassembleExtendedData(chunks);
