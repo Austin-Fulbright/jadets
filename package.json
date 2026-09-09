@@ -28,6 +28,7 @@
 		"build": "tsup",
 		"clean": "rm -rf node_modules package-lock.json",
 		"clean:build": "rm -rf dist build out",
+		"test": "mocha -r ts-node/register tests/jade_interface.spec.ts",
 		"test:e2e": "mocha --loader ts-node/esm test/**/*.spec.ts",
 		"demo": "ts-node src/temp/demo.ts",
 		"demo:web": "npm run build && node demo/server.js"

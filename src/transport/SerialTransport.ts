@@ -38,6 +38,14 @@ export class SerialTransport extends EventEmitter implements JadeTransport {
 
       await this.port.open({ baudRate: this.options.baudRate || 115200,
 							 bufferSize: this.options.bufferSize || 4 * 1024 });
+      // Jade Classic reboots if DTR/RTS stay asserted after open (jadepy clears both).
+      if (typeof this.port.setSignals === 'function') {
+        try {
+          await this.port.setSignals({ dataTerminalReady: false, requestToSend: false });
+        } catch (error) {
+          console.warn('[WebSerialPort] Failed to clear DTR/RTS:', error);
+        }
+      }
       this.reader = this.port.readable?.getReader() || null;
       if (this.reader) {
         this.readLoop();
