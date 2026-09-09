@@ -29,13 +29,13 @@ export class JadeInterface implements IJadeInterface {
     }
 
     await this.transport.sendMessage(request);
-    
+
     const initialResponse = await this.waitForResponse(request.id, long_timeout);
-    
+
     if (this.isExtendedDataResponse(initialResponse)) {
-      return await this.handleExtendedDataResponse(initialResponse, request.id, long_timeout);
+      return await this.handleExtendedDataResponse(initialResponse, request, long_timeout);
     }
-    
+
     return initialResponse;
   }
 
@@ -74,37 +74,49 @@ export class JadeInterface implements IJadeInterface {
   }
 
   /**
-   * Handles extended data responses by collecting all chunks
+   * Handles extended data responses by collecting all chunks.
+   * Jade seqnum is 1-based. More fragments exist while seqnum < seqlen.
+   * get_extended_data must use a new id plus origid/orig/seqnum/seqlen.
    */
   private async handleExtendedDataResponse(
-    initialResponse: RPCResponse, 
-    requestId: string, 
+    initialResponse: RPCResponse,
+    originalRequest: RPCRequest,
     long_timeout: boolean
   ): Promise<RPCResponse> {
     const chunks: RPCResponse[] = [initialResponse];
-    const totalChunks = initialResponse.seqlen!;
-    
-    console.log(`Receiving extended data: chunk ${initialResponse.seqnum! + 1}/${totalChunks}`);
+    let last = initialResponse;
 
-    for (let expectedSeqnum = initialResponse.seqnum! + 1; expectedSeqnum < totalChunks; expectedSeqnum++) {
-      const extendedRequest: RPCRequest = {
-        id: requestId,
-        method: 'get_extended_data',
-        params: { seqnum: expectedSeqnum }
-      };
+    console.log(`Receiving extended data: chunk ${last.seqnum}/${last.seqlen}`);
+
+    while (this.isExtendedDataResponse(last)) {
+      const nextSeqnum = last.seqnum! + 1;
+      const extendedRequest = this.buildRequest(
+        Math.floor(Math.random() * 1000000).toString(),
+        'get_extended_data',
+        {
+          origid: originalRequest.id,
+          orig: originalRequest.method,
+          seqnum: nextSeqnum,
+          seqlen: last.seqlen,
+        }
+      );
 
       await this.transport.sendMessage(extendedRequest);
-      const chunkResponse = await this.waitForResponse(requestId, long_timeout);
+      const chunkResponse = await this.waitForResponse(extendedRequest.id, long_timeout);
 
-      if (chunkResponse.seqnum !== expectedSeqnum) {
-        throw new Error(`Expected chunk ${expectedSeqnum}, got ${chunkResponse.seqnum}`);
+      if (chunkResponse.error) {
+        return chunkResponse;
       }
-      if (chunkResponse.seqlen !== totalChunks) {
-        throw new Error(`Inconsistent seqlen: expected ${totalChunks}, got ${chunkResponse.seqlen}`);
+      if (chunkResponse.seqnum !== nextSeqnum) {
+        throw new Error(`Expected chunk ${nextSeqnum}, got ${chunkResponse.seqnum}`);
+      }
+      if (chunkResponse.seqlen !== last.seqlen) {
+        throw new Error(`Inconsistent seqlen: expected ${last.seqlen}, got ${chunkResponse.seqlen}`);
       }
 
       chunks.push(chunkResponse);
-      console.log(`Received extended data chunk: ${expectedSeqnum + 1}/${totalChunks}`);
+      last = chunkResponse;
+      console.log(`Received extended data chunk: ${last.seqnum}/${last.seqlen}`);
     }
 
     return this.reassembleExtendedData(chunks);

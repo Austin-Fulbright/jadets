@@ -204,7 +204,7 @@ export class Jade implements IJade {
 		if (opts.csvBlocks)      params.csv_blocks = opts.csvBlocks;
 		if (opts.confidential)   params.confidential = opts.confidential;
 
-		return this._jadeRpc("get_receive_address", params);
+		return this._jadeRpc("get_receive_address", params, undefined, true);
 	}
 
 	async signMessage(
